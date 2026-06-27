@@ -1,0 +1,28 @@
+[project]
+name = "soge-mcp"
+version = "1.0.0"
+description = "Soge.dk MCP server — Danish vehicle, company (CVR), address & phone data for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Soge.dk" }]
+keywords = ["mcp", "denmark", "vehicle", "cvr", "dmr", "motorregister", "company-data"]
+dependencies = [
+    "mcp[cli]>=1.28,<2",   # FastMCP; pinned below the unreleased 2.0 FastMCP→MCPServer rename
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://soge.dk"
+"API docs" = "https://soge.dk/api/v1/docs"
+Pricing = "https://soge.dk/pricing"
+
+[project.scripts]
+soge-mcp = "soge_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["soge_mcp"]

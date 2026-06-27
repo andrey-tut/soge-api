@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: Soge.dk Public API
+  version: "1.0.0"
+  description: |
+    Free & paid REST API for Danish public data — **vehicles** (DMR / Motorregister),
+    **companies** (CVR / Virk), **addresses** (DAWA-compatible) and **phone** lookups.
+
+    - Base URL: `https://soge.dk/api/v1`
+    - Auth: send your key in the **`X-API-KEY`** header on every request (except `/health`).
+    - Get a key (free tier available): https://soge.dk/pricing
+    - The same key also powers the **MCP server** for AI agents — see the repo README.
+
+    Plans: a free tier covers the core lookups; endpoints tagged **Premium** require a paid plan
+    and return a clear "requires a paid plan" message otherwise.
+  contact:
+    name: Soge.dk
+    url: https://soge.dk
+  license:
+    name: Proprietary (data © official Danish registries)
+    url: https://soge.dk
+
+servers:
+  - url: https://soge.dk/api/v1
+    description: Production
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: System
+    description: Health & status
+  - name: Vehicles
+    description: Danish Motor Register (DMR) lookups
+  - name: Companies
+    description: Central Business Register (CVR / Virk) lookups
+  - name: People
+    description: Person-level company involvement (CVR enhedsNummer)
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Service liveness probe. No API key required.
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /vehicles/{identifier}:
+    get:
+      tags: [Vehicles]
+      summary: Get vehicle data
+      description: |
+        Full vehicle record by **registration number** (nummerplade) or **VIN** (stelnummer):
+        make/model, specs, fuel/EV, green tax, technical data and status. Free tier.
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /companies/{query}:
+    get:
+      tags: [Companies]
+      summary: Search companies
+      description: Search Danish companies by **CVR number**, **name** or free text. Free tier.
+      parameters:
+        - name: query
+          in: path
+          required: true
+          schema: { type: string }
+          description: CVR number, company name, or free-text query
+          example: "novo nordisk"
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /companies-at-address:
+    get:
+      tags: [Companies]
+      summary: Companies at an address
+      description: List companies registered at a Danish address. Free tier.
+      parameters:
+        - name: vejkode
+          in: query
+          schema: { type: string }
+          description: Street code (vejkode)
+        - name: husnr
+          in: query
+          schema: { type: string }
+          description: House number
+        - name: postnr
+          in: query
+          schema: { type: string }
+          description: Postal code
+          example: "1050"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /koretoj/{identifier}/inspections:
+    get:
+      tags: [Vehicles]
+      summary: Vehicle inspection history (syn)
+      description: |
+        **Premium.** Official periodic-inspection (syn) history: result, odometer reading,
+        defects, station and report PDFs.
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /koretoj/{identifier}/insurance:
+    get:
+      tags: [Vehicles]
+      summary: Vehicle insurance status
+      description: "**Premium.** Insurer, current status, history and block/seizure flags."
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /koretoj/{vin}/odometer:
+    get:
+      tags: [Vehicles]
+      summary: Odometer history + rollback detection
+      description: "**Premium.** Odometer readings over time with rollback-fraud detection."
+      parameters:
+        - name: vin
+          in: path
+          required: true
+          schema: { type: string }
+          description: VIN (stelnummer)
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /koretoj/{identifier}/recalls:
+    get:
+      tags: [Vehicles]
+      summary: Safety recalls
+      description: "**Premium.** Open safety recalls matched to the vehicle's make/model."
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /cvr/{cvr}/ownership:
+    get:
+      tags: [Companies]
+      summary: Ownership / control graph
+      description: "**Premium.** Real owners and control relationships for a company."
+      parameters:
+        - $ref: "#/components/parameters/Cvr"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /cvr/{cvr}/financials:
+    get:
+      tags: [Companies]
+      summary: Annual-report financials
+      description: "**Premium.** Annual-report figures with a 2-year comparison."
+      parameters:
+        - $ref: "#/components/parameters/Cvr"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /cvr/person/{enhedsNummer}/companies:
+    get:
+      tags: [People]
+      summary: Companies a person is involved in
+      description: "**Premium.** Every company linked to a person (by CVR enhedsNummer)."
+      parameters:
+        - $ref: "#/components/parameters/EnhedsNummer"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /cvr/person/{enhedsNummer}/bankruptcies:
+    get:
+      tags: [People]
+      summary: Person bankruptcy history
+      description: "**Premium.** Serial-bankruptcy radar for a person (by CVR enhedsNummer)."
+      parameters:
+        - $ref: "#/components/parameters/EnhedsNummer"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+
+  parameters:
+    VehicleIdentifier:
+      name: identifier
+      in: path
+      required: true
+      schema: { type: string }
+      description: Registration number (nummerplade) or VIN (stelnummer)
+      example: "AB12345"
+    Cvr:
+      name: cvr
+      in: path
+      required: true
+      schema: { type: string }
+      description: 8-digit CVR number
+      example: "25052943"
+    EnhedsNummer:
+      name: enhedsNummer
+      in: path
+      required: true
+      schema: { type: string }
+      description: CVR person unit number (enhedsNummer)
+
+  responses:
+    Ok:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: object, description: Endpoint-specific payload }
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Invalid API key", code: 401 }
+    PaymentRequired:
+      description: Endpoint requires a paid plan
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "This endpoint requires a paid plan", code: 402 }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Not found", code: 404 }
+    RateLimited:
+      description: Rate limit exceeded (tiered by plan)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Rate limit exceeded", code: 429 }
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        status: { type: string, example: healthy }
+        service: { type: string, example: "Soge.dk API" }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: integer }

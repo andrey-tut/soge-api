@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Soge.dk API — Reference</title>
+  <meta name="description" content="Interactive reference for the Soge.dk public API — Danish vehicle (DMR), company (CVR), address and phone data. Free tier available." />
+  <link rel="icon" href="https://soge.dk/static/icons/favicon.ico" />
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #0f172a; }
+    .topbar-wrap {
+      background: #0f172a; color: #f4f7fc; padding: 18px 24px;
+      font: 600 16px -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display: flex; align-items: center; gap: 14px; border-bottom: 4px solid #2563eb;
+    }
+    .topbar-wrap a { color: #93b4ff; text-decoration: none; font-weight: 600; }
+    .topbar-wrap .sp { flex: 1; }
+    .topbar-wrap small { font-weight: 400; color: #8290a5; }
+    #swagger-ui { max-width: 1100px; margin: 0 auto; background: #fff; }
+  </style>
+</head>
+<body>
+  <div class="topbar-wrap">
+    🔎 Soge.dk API
+    <small>Danish vehicle · company · address · phone data</small>
+    <span class="sp"></span>
+    <a href="https://soge.dk/pricing">Get an API key</a>
+    <a href="https://github.com/andrey-tut/soge-api">GitHub</a>
+    <a href="https://github.com/andrey-tut/soge-api#mcp-server-for-ai-agents">MCP server</a>
+  </div>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = function () {
+      window.ui = SwaggerUIBundle({
+        url: "./openapi.yaml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "BaseLayout",
+        defaultModelsExpandDepth: 0,
+        tryItOutEnabled: true
+      });
+    };
+  </script>
+</body>
+</html>
