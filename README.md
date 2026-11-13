@@ -3,7 +3,7 @@
 [![API docs](https://img.shields.io/badge/docs-Swagger%20UI-2563eb)](https://andrey-tut.github.io/soge-api/)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-6ba539?logo=openapiinitiative&logoColor=white)](./openapi.yaml)
 [![MCP](https://img.shields.io/badge/MCP-server-1a1a1a?logo=anthropic&logoColor=white)](#mcp-server-for-ai-agents)
-[![Free tier](https://img.shields.io/badge/free%20tier-100%20calls%2Fmo-22c55e)](https://soge.dk/pricing)
+[![Free tier](https://img.shields.io/badge/free%20tier-1500%20calls%2Fmo-22c55e)](https://soge.dk/pricing)
 [![License](https://img.shields.io/badge/examples-MIT-blue)](./LICENSE)
 
 One REST API for Danish public data — **vehicles** (DMR / Motorregister), **companies**
@@ -44,23 +44,38 @@ Base URL: `https://soge.dk/api/v1` · Auth: `X-API-KEY` header · full spec: [`o
 |---|---|---|
 | `GET /health` | none | Service health (no key) |
 | `GET /vehicles/{identifier}` | free | Vehicle by plate or VIN — specs, fuel/EV, green tax, status |
-| `GET /companies/{query}` | free | Company search by CVR / name / text (`page`, `size`) |
-| `GET /companies-at-address` | free | Companies at an address (`vejkode`, `husnr`, `postnr`) |
+| `GET /koretoj/{identifier}/full` | **paid** | **Everything the vehicle page shows in one call** (data + all live enrichments) |
+| `GET /koretoj/{identifier}/tax` | free | Green owner-tax (ejerafgift) + next-syn schedule |
+| `GET /koretoj/{identifier}/ev-specs` | free | EV / PHEV battery capacity, range, consumption |
+| `GET /koretoj/{identifier}/safety-alerts` | free | EU Safety Gate (RAPEX) alerts for the make/model |
 | `GET /koretoj/{identifier}/inspections` | **paid** | Inspection (syn) history: odometer, defects, station, PDFs |
 | `GET /koretoj/{identifier}/insurance` | **paid** | Insurer, status, history, block/seizure flag |
+| `GET /koretoj/{identifier}/dmr` | **paid** | Full DMR-kerne walk: battery, range, measured consumption, equipment, next-syn, leasing |
+| `GET /koretoj/{identifier}/valuations` | **paid** | Official DMR valuation history |
+| `GET /koretoj/{identifier}/liens` | **paid** | Car debt / liens (Bilbogen · Tinglysning) |
 | `GET /koretoj/{vin}/odometer` | **paid** | Odometer history + rollback-fraud detection |
 | `GET /koretoj/{identifier}/recalls` | **paid** | Safety recalls matched to make/model |
+| `GET /models/{make}/{model}/stats` | free | Per-model fleet stats + inspection-fault profile |
+| `GET /companies/{query}` | free | Company search by CVR / name / text (`page`, `size`) |
+| `GET /companies-at-address` | free | Companies at an address (`vejkode`, `husnr`, `postnr`) |
+| `GET /cvr/phone/{phone}` | free | Reverse phone lookup — companies at a phone/fax number |
+| `GET /cvr/stats` | free | CVR corpus totals (total + new day/week) |
 | `GET /cvr/{cvr}/ownership` | **paid** | Ownership / control graph |
+| `GET /cvr/{cvr}/network` | **paid** | Multi-degree network (owners, mgmt, shared contacts) |
 | `GET /cvr/{cvr}/financials` | **paid** | Annual-report figures, 2-year comparison |
 | `GET /cvr/person/{enhedsNummer}/companies` | **paid** | Every company a person is involved in |
 | `GET /cvr/person/{enhedsNummer}/bankruptcies` | **paid** | Serial-bankruptcy radar |
+| `GET /reviews/{target_type}/{target_id}` | free | User reviews + aggregateRating (company / vehicle model) |
 
 Errors use `{ "error": "...", "code": <int> }`. Rate limits are tiered by plan (`429` on excess).
+Full site ⇄ API parity is tracked in the backend's `API_SITE_PARITY.md` and enforced in CI.
 
 ## MCP server for AI agents
 
 Give Claude / Cursor / any [MCP](https://modelcontextprotocol.io) client direct access to this data.
-The MCP server is a thin wrapper over the REST API above — **the same `X-API-KEY` and plan meter both**.
+The MCP server is a thin wrapper over the REST API above — **the same `X-API-KEY` works for both**.
+MCP calls are metered on their own (smaller) monthly quota per plan, separate from your REST quota —
+see [soge.dk/pricing](https://soge.dk/pricing).
 
 ```bash
 pip install soge-mcp          # see ./mcp for source

@@ -1,6 +1,6 @@
 [project]
 name = "soge-mcp"
-version = "1.0.0"
+version = "1.1.0"
 description = "Soge.dk MCP server — Danish vehicle, company (CVR), address & phone data for AI agents"
 readme = "README.md"
 requires-python = ">=3.10"

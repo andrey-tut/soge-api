@@ -36,6 +36,8 @@ tags:
     description: Central Business Register (CVR / Virk) lookups
   - name: People
     description: Person-level company involvement (CVR enhedsNummer)
+  - name: Reviews
+    description: User reviews & aggregateRating (companies & vehicle models)
 
 paths:
   /health:
@@ -215,6 +217,216 @@ paths:
         "200": { $ref: "#/components/responses/Ok" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /koretoj/{identifier}/full:
+    get:
+      tags: [Vehicles]
+      summary: Full vehicle report (everything the site shows)
+      description: |
+        **Premium.** The complete vehicle report in ONE call — parity with the soge.dk vehicle
+        page: core DMR data, equipment, syn, fuels, derived powertrain/lifecycle/origin, green-tax
+        & next-syn calculators, model fault & fleet stats, miljøzone/import flags, fuel-segment
+        economy, plus live enrichments (insurance, full DMR-kerne walk, eSyn inspections, recalls,
+        Bilbogen liens, EU Safety Gate alerts, EV battery/range, valuations, market price).
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+        - name: include_live
+          in: query
+          required: false
+          schema: { type: boolean, default: true }
+          description: Set false for the instant DB-only tier (skips external scrapes).
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/dmr:
+    get:
+      tags: [Vehicles]
+      summary: Full DMR-kerne walk
+      description: |
+        **Premium.** The technical/equipment/leasing tabs the weekly bulk dump lacks: battery
+        capacity, electric range, measured consumption, the Ekstraudstyr list, the registry's own
+        next-inspection date, leasing period and block/seizure status.
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/valuations:
+    get:
+      tags: [Vehicles]
+      summary: DMR valuation history
+      description: "**Premium.** Official DMR valuations (vurderinger) behind registration tax."
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/liens:
+    get:
+      tags: [Vehicles]
+      summary: Car debt / liens (Bilbogen)
+      description: |
+        **Premium.** Liens registered against the vehicle in Bilbogen / Tinglysning — is this car
+        pledged as security for a loan?
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/safety-alerts:
+    get:
+      tags: [Vehicles]
+      summary: EU Safety Gate (RAPEX) alerts
+      description: |
+        Brand-level EU Safety Gate product-safety alerts matched to the vehicle's make/model —
+        distinct from manufacturer recalls. Free tier.
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/ev-specs:
+    get:
+      tags: [Vehicles]
+      summary: EV / PHEV battery & range
+      description: "Battery capacity, electric range and consumption (OpenEV). Free tier. 404 for pure-combustion."
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /koretoj/{identifier}/tax:
+    get:
+      tags: [Vehicles]
+      summary: Green owner-tax + next-syn schedule
+      description: "Grøn ejerafgift / CO2-afgift and the next periodic-inspection schedule. Free tier."
+      parameters:
+        - $ref: "#/components/parameters/VehicleIdentifier"
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string, enum: [en, da, uk], default: en }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /models/{make}/{model}/stats:
+    get:
+      tags: [Vehicles]
+      summary: Per-model fleet & fault stats
+      description: "Fleet stats (count, age, fuel/colour mix, avg mileage) + inspection-fault profile. Free tier."
+      parameters:
+        - name: make
+          in: path
+          required: true
+          schema: { type: string }
+          example: "Toyota"
+        - name: model
+          in: path
+          required: true
+          schema: { type: string }
+          example: "Corolla"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /cvr/{cvr}/network:
+    get:
+      tags: [Companies]
+      summary: Multi-degree company network
+      description: |
+        **Premium.** Owners, management, founders and shared-contact links (phone/email/domain)
+        across all relationship kinds, with status colours. The expensive graph builds in the
+        background — a cold company returns **202** with `retry_after`; re-request shortly.
+      parameters:
+        - $ref: "#/components/parameters/Cvr"
+        - name: depth
+          in: query
+          required: false
+          schema: { type: integer, default: 2, minimum: 1, maximum: 3 }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "202":
+          description: Graph is building; retry after `retry_after` seconds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, nullable: true }
+                  status: { type: string, example: building }
+                  retry_after: { type: integer, example: 3 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+
+  /cvr/phone/{phone}:
+    get:
+      tags: [Companies]
+      summary: Reverse phone lookup
+      description: |
+        Every company that registered this exact phone number in CVR — on the company record or on
+        one of its production units. Each company carries `status`, `active`, `branche`, and the
+        number's registration there: `phone_current` (still registered to it), `phone_from`,
+        `phone_to` (null while current) and `phone_registered_on` (`company` and/or `p_unit`).
+        Free tier.
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema: { type: string }
+          example: "46321499"
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /cvr/stats:
+    get:
+      tags: [Companies]
+      summary: CVR corpus totals
+      description: "Total companies + new registrations (day / week). Free tier."
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /reviews/{target_type}/{target_id}:
+    get:
+      tags: [Reviews]
+      summary: Reviews + aggregateRating
+      description: |
+        Approved user reviews and the aggregateRating summary for a company or vehicle model —
+        the same ratings the site renders. Free tier.
+      parameters:
+        - name: target_type
+          in: path
+          required: true
+          schema: { type: string, enum: [company, vehicle_model] }
+        - name: target_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: CVR number (company) or make/model slug (vehicle_model)
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/NotFound" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
 components:
   securitySchemes:

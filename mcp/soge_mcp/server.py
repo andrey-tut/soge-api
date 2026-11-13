@@ -3,8 +3,9 @@
 Exposes Denmark's vehicle (DMR/Motorregister) and company (CVR/Virk) datasets to MCP-capable
 AI clients (Claude Desktop/Code, Cursor, …) as a small set of well-described tools. It is a
 thin, async client over the public Soge REST API at https://soge.dk/api/v1 — authentication,
-per-plan quotas and billing are all enforced server-side via your X-API-KEY, so the same key
-meters both REST and MCP usage.
+per-plan quotas and billing are all enforced server-side via your X-API-KEY. MCP traffic
+self-identifies via the X-Soge-Client header and is metered on its own (smaller) monthly
+quota per plan, separate from your REST quota — see https://soge.dk/pricing.
 
 Configuration (environment variables):
   SOGE_API_KEY    your Soge API key (https://soge.dk/pricing). Required for every data tool;
@@ -47,7 +48,7 @@ async def _lifespan(_server: FastMCP) -> AsyncIterator[AppCtx]:
     headers = {
         "Accept": "application/json",
         "User-Agent": _CLIENT_ID,
-        "X-Soge-Client": _CLIENT_ID,  # lets the backend meter MCP traffic distinctly later
+        "X-Soge-Client": _CLIENT_ID,  # backend meters MCP traffic on its own quota via this
     }
     key = (os.environ.get("SOGE_API_KEY") or "").strip()
     if key:
@@ -200,6 +201,98 @@ async def person_bankruptcies(enheds_nummer: int, ctx: Context) -> dict:
     """[Paid plan] Serial-bankruptcy radar: companies tied to a person (by enhedsnummer) that went
     bankrupt — a fast due-diligence red-flag check."""
     return await _get(ctx, f"/api/v1/cvr/person/{_enc(enheds_nummer)}/bankruptcies")
+
+
+# ───────────────── Site-parity endpoints (API_SITE_PARITY.md, 0425d40) ─────────────────
+
+@mcp.tool()
+async def vehicle_full_report(identifier: str, ctx: Context, include_live: bool = True) -> dict:
+    """[Paid plan] The whole soge.dk vehicle page in ONE call (plate or VIN): core DMR data,
+    equipment, syn, fuels, powertrain/lifecycle, green-tax & next-syn calculators, model fault &
+    fleet stats, plus live enrichments (insurance, DMR-kerne, inspections, recalls, liens).
+    include_live=False skips the slower live sources."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/full",
+                      {"include_live": "false" if not include_live else None})
+
+
+@mcp.tool()
+async def vehicle_valuations(identifier: str, ctx: Context) -> dict:
+    """[Paid plan] Official DMR valuation history (vurderinger) for a vehicle (plate or VIN) —
+    the assessed values behind registration tax."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/valuations")
+
+
+@mcp.tool()
+async def vehicle_liens(identifier: str, ctx: Context) -> dict:
+    """[Paid plan] Car debt / liens registered against a vehicle (Bilbogen / Tinglysning) — is it
+    pledged as loan security? Plate or VIN. Not found = no lien data for that vehicle."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/liens")
+
+
+@mcp.tool()
+async def vehicle_dmr(identifier: str, ctx: Context) -> dict:
+    """[Paid plan] Full DMR-kerne record for a vehicle (plate or VIN): battery capacity, electric
+    range, measured consumption, extra equipment, the registry's next-inspection date, leasing
+    period, block/seizure status."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/dmr")
+
+
+@mcp.tool()
+async def vehicle_ev_specs(identifier: str, ctx: Context) -> dict:
+    """EV/PHEV battery capacity, electric range and consumption for a vehicle (plate or VIN),
+    matched by make/model/variant. Not found for pure-combustion vehicles."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/ev-specs")
+
+
+@mcp.tool()
+async def vehicle_safety_alerts(identifier: str, ctx: Context) -> dict:
+    """EU Safety Gate (RAPEX) alerts matched to a vehicle's make/model (plate or VIN) — brand-level
+    product-safety warnings, distinct from manufacturer recalls (vehicle_recalls)."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/safety-alerts")
+
+
+@mcp.tool()
+async def vehicle_tax(identifier: str, ctx: Context, lang: str = "en") -> dict:
+    """Danish green owner-tax (grøn ejerafgift / CO2-afgift) and the next periodic-inspection
+    schedule for a vehicle (plate or VIN) — the figures the site's calculators show.
+    lang: en | da | uk."""
+    return await _get(ctx, f"/api/v1/koretoj/{_enc(identifier)}/tax", {"lang": lang})
+
+
+@mcp.tool()
+async def model_stats(make: str, model: str, ctx: Context) -> dict:
+    """Per-model aggregates for a make/model (e.g. "BMW", "3-serie"): fleet size, age, fuel and
+    colour mix, average mileage, and the inspection-fault profile (top defects, fail rate)."""
+    return await _get(ctx, f"/api/v1/models/{_enc(make)}/{_enc(model)}/stats")
+
+
+@mcp.tool()
+async def company_network(cvr: str, ctx: Context, depth: int = 2) -> dict:
+    """[Paid plan] Multi-degree company network by CVR — owners, management, founders and shared
+    phone/email/domain links, with status colours and a risk summary. A cold company may answer
+    with a pending status and retry_after: call again after that many seconds."""
+    return await _get(ctx, f"/api/v1/cvr/{_enc(cvr)}/network", {"depth": depth})
+
+
+@mcp.tool()
+async def companies_by_phone(phone: str, ctx: Context) -> dict:
+    """Reverse phone lookup in CVR: every company (or production unit) that registered this exact
+    Danish phone number, its status, and whether the number is still registered to it."""
+    return await _get(ctx, f"/api/v1/cvr/phone/{_enc(phone)}")
+
+
+@mcp.tool()
+async def cvr_stats(ctx: Context) -> dict:
+    """CVR corpus totals: number of Danish companies, new registrations today and this week,
+    and companies changed today."""
+    return await _get(ctx, "/api/v1/cvr/stats")
+
+
+@mcp.tool()
+async def reviews(target_type: str, target_id: str, ctx: Context) -> dict:
+    """Approved user reviews plus the aggregate rating for a company or a vehicle model.
+    target_type: "company" (target_id = CVR) or "vehicle_model" (target_id as on soge.dk)."""
+    return await _get(ctx, f"/api/v1/reviews/{_enc(target_type)}/{_enc(target_id)}")
 
 
 def main() -> None:

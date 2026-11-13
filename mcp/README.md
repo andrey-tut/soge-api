@@ -73,6 +73,18 @@ Restart the client; the **soge** tools appear.
 | `company_financials(cvr)` | **paid** | Annual-report figures, 2-year comparison |
 | `person_companies(enheds_nummer)` | **paid** | Every company a person is involved in |
 | `person_bankruptcies(enheds_nummer)` | **paid** | Serial-bankruptcy radar |
+| `vehicle_full_report(identifier, include_live)` | **paid** | The whole soge.dk vehicle page in one call |
+| `vehicle_valuations(identifier)` | **paid** | Official DMR valuation history |
+| `vehicle_liens(identifier)` | **paid** | Car debt / liens (Bilbogen) |
+| `vehicle_dmr(identifier)` | **paid** | Full DMR record: battery, range, equipment, leasing, next syn |
+| `vehicle_ev_specs(identifier)` | any | EV/PHEV battery, range, consumption |
+| `vehicle_safety_alerts(identifier)` | any | EU Safety Gate alerts for the make/model |
+| `vehicle_tax(identifier, lang)` | any | Green owner-tax + next inspection schedule |
+| `model_stats(make, model)` | any | Fleet stats + inspection-fault profile per model |
+| `company_network(cvr, depth)` | **paid** | Multi-degree owner/management/contact network |
+| `companies_by_phone(phone)` | any | Reverse phone lookup in CVR |
+| `cvr_stats()` | any | CVR totals, new and changed companies |
+| `reviews(target_type, target_id)` | any | User reviews + aggregate rating (company / vehicle model) |
 
 Premium tools return a clear "requires a paid plan" message on the free tier.
 
