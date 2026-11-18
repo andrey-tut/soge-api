@@ -67,7 +67,7 @@ Base URL: `https://soge.dk/api/v1` · Auth: `X-API-KEY` header · full spec: [`o
 | `GET /cvr/person/{enhedsNummer}/bankruptcies` | **paid** | Serial-bankruptcy radar |
 | `GET /reviews/{target_type}/{target_id}` | free | User reviews + aggregateRating (company / vehicle model) |
 
-Errors use `{ "error": "...", "code": <int> }`. Rate limits are tiered by plan (`429` on excess).
+Errors use `{"error": {"code": "<string>", "message": "<da|en|uk by Accept-Language>", "details": {...}}}` — codes: `invalid_key` 401, `scope_missing` 403, `device_limit` 403, `quota_exceeded` 402, `rate_limited` 429 (+ `Retry-After`), `not_found` 404, `validation_error`/`invalid_cvr` 422, `upstream_unavailable` 503. `GET /api/v1/me` (free) shows plan, quota and scopes; `GET /api/v1/checkout/cvr/{cvr}` works without a key at low limits. WordPress setup: https://soge.dk/en/docs/wordpress
 Full site ⇄ API parity is tracked in the backend's `API_SITE_PARITY.md` and enforced in CI.
 
 ## MCP server for AI agents
@@ -78,7 +78,8 @@ MCP calls are metered on their own (smaller) monthly quota per plan, separate fr
 see [soge.dk/pricing](https://soge.dk/pricing).
 
 ```bash
-pip install soge-mcp          # see ./mcp for source
+pip install "git+https://github.com/andrey-tut/soge-api#subdirectory=mcp"   # source: ./mcp (not on PyPI yet)
+# or without installing: uvx --from "git+https://github.com/andrey-tut/soge-api#subdirectory=mcp" soge-mcp
 ```
 
 **Claude Code:**

@@ -11,7 +11,7 @@ It's a thin async wrapper over the public [Soge API](https://soge.dk/api/v1/docs
 Requires Python ≥ 3.10.
 
 ```bash
-pip install soge-mcp          # from PyPI (once published)
+pip install "git+https://github.com/andrey-tut/soge-api#subdirectory=mcp"   # not on PyPI yet
 # or from a checkout:
 pip install /path/to/mcp_server
 ```
